@@ -9,7 +9,9 @@ import android.os.IBinder;
 import android.os.SystemClock;
 import android.preference.PreferenceManager;
 
+import com.coolweather.android.gson.Weather;
 import com.coolweather.android.util.HttpUtil;
+import com.coolweather.android.util.Utility;
 
 import java.io.IOException;
 
@@ -44,6 +46,30 @@ public class AutoUpdateService extends Service {
      * 更新天气信息
      */
     private void updateWeather(){
+        SharedPreferences prefs=PreferenceManager.getDefaultSharedPreferences(this);
+        String weatherString =prefs.getString("weather",null);
+        if (weatherString!=null){
+            //有缓存时直接解析天气数据
+            Weather weather= Utility.handleWeatherResponse(weatherString);
+            String weatherId=weather.basic.weatherId;
+            String weatherUrl="http://guolin.tech/api/weather?cityid="+weatherId+"&key=cfe268e31b524d0bbe763e88295d38da";
+            HttpUtil.sendOkHttpRequest(weatherUrl, new Callback() {
+                @Override
+                public void onFailure(Call call, IOException e) {
+                    e.printStackTrace();
+                }
+                @Override
+                public void onResponse(Call call, Response response) throws IOException {
+                    String responseText=response.body().string();
+                    Weather weather=Utility.handleWeatherResponse(responseText);
+                    if (weather!=null && "ok".equals(weather.status)){
+                        SharedPreferences.Editor editor=PreferenceManager.getDefaultSharedPreferences(AutoUpdateService.this).edit();
+                        editor.putString("weather",responseText);
+                        editor.apply();
+                    }
+                }
+            });
+        }
 
     }
     /**
